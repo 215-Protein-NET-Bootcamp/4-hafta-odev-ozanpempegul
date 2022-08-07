@@ -4,6 +4,7 @@ using cacheHW.Data;
 using cacheHW.Dto;
 using cacheHW.Service;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Serilog;
 
 namespace cacheHW
@@ -12,28 +13,50 @@ namespace cacheHW
     [ApiController]
     public class PersonController : BaseController<PersonDto, Person>
     {
+
+        private const string employeeListCacheKey = "employeeList";
+        private IMemoryCache _cache;
         private readonly IPersonService personService;
 
-        public PersonController(IPersonService personService, IMapper mapper) : base(personService, mapper)
+        public PersonController(IPersonService personService, IMapper mapper, IMemoryCache cache) : base(personService, mapper)
         {
             this.personService = personService;
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+
         }
 
-        [ResponseCache(CacheProfileName = "Duration45")]
         [HttpGet]
         public async Task<IActionResult> GetPaginationAsync([FromQuery] int page, [FromQuery] int pageSize)
         {
             Log.Information($"{User.Identity?.Name}: get pagination person.");
 
-            QueryResource pagintation = new QueryResource(page, pageSize);
+            PaginationResponse<IEnumerable<PersonDto>> result;
 
-            var result = await personService.GetPaginationAsync(pagintation, null);
+            if (_cache.TryGetValue(employeeListCacheKey, out result))
+            {                
+            }
 
-            if (!result.Success)
-                return BadRequest(result);
+            else
+            {
+                QueryResource pagination = new QueryResource(page, pageSize);
 
-            if (result.Response is null)
-                return NoContent();
+                result = await personService.GetPaginationAsync(pagination, null);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                if (result.Response is null)
+                    return NoContent();
+
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromSeconds(60))
+                        .SetAbsoluteExpiration(TimeSpan.FromSeconds(3600))
+                        .SetPriority(CacheItemPriority.Normal)
+                        .SetSize(1024);
+
+                _cache.Set(employeeListCacheKey, result, cacheEntryOptions);
+            }
+
 
             return Ok(result);
         }

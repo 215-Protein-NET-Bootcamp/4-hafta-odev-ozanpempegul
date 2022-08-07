@@ -19,19 +19,6 @@ namespace cacheHW
         {
             services.AddControllers();
 
-            // response cache profile
-            services.AddControllersWithViews(options =>
-             options.CacheProfiles.Add("Duration45", new CacheProfile
-             {
-                 Duration = 45,
-                 Location = ResponseCacheLocation.Any,
-                 NoStore = false
-             }));
-
-            // add response cache
-            services.AddResponseCaching();
-
-
             // add Filter
             services.AddMvc(options =>
             {

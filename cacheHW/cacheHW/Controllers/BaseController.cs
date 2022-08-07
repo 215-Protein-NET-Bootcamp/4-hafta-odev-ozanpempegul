@@ -7,6 +7,7 @@ namespace cacheHW
     [ApiController]
     public class BaseController<Dto, Entity> : ControllerBase
     {
+
         private readonly IBaseService<Dto, Entity> _baseService;
         protected readonly IMapper Mapper;
 
